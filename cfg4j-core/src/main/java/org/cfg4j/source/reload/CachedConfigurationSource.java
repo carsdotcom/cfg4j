@@ -1,17 +1,15 @@
 /*
  * Copyright 2015-2016 Norbert Potocki (norbert.potocki@nort.pl)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.cfg4j.source.reload;
 
@@ -26,7 +24,8 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * A {@link ConfigurationSource} that caches configuration between calls to the {@link #reload(Environment)} method.
+ * A {@link ConfigurationSource} that caches configuration between calls to the
+ * {@link #reload(Environment)} method.
  */
 public class CachedConfigurationSource implements ConfigurationSource {
 
@@ -51,7 +50,8 @@ public class CachedConfigurationSource implements ConfigurationSource {
    *
    * @param environment environment to use
    * @return configuration set for {@code environment}
-   * @throws MissingEnvironmentException when there's no config for the given environment in the cache
+   * @throws MissingEnvironmentException when there's no config for the given environment in the
+   *         cache
    */
   @Override
   public Properties getConfiguration(Environment environment) {
@@ -68,15 +68,27 @@ public class CachedConfigurationSource implements ConfigurationSource {
   }
 
   /**
-   * Reload configuration set for a given {@code environment} from this source in a form of {@link Properties}.
-   * After reload completes the configuration can be accesses via {@link #getConfiguration(Environment)} method.
+   * Reload configuration set for a given {@code environment} from this source in a form of
+   * {@link Properties}. After reload completes the configuration can be accesses via
+   * {@link #getConfiguration(Environment)} method.
    *
    * @param environment environment to reload
    * @throws MissingEnvironmentException when requested environment couldn't be found
-   * @throws IllegalStateException       when unable to fetch configuration
+   * @throws IllegalStateException when unable to fetch configuration
    */
   public void reload(Environment environment) {
     Properties configuration = underlyingSource.getConfiguration(environment);
     cachedConfigurationPerEnvironment.put(environment.getName(), configuration);
   }
+
+  /**
+   * Updates the properties for an environment.
+   * 
+   * @param environment environment to reload
+   * @param properties changed properties
+   */
+  public void notify(Environment environment, Properties properties) {
+    cachedConfigurationPerEnvironment.put(environment.getName(), properties);
+  }
+
 }

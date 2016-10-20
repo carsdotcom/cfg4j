@@ -1,36 +1,35 @@
 /*
  * Copyright 2015-2016 Norbert Potocki (norbert.potocki@nort.pl)
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.cfg4j.source.consul;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.net.HostAndPort;
-import com.orbitz.consul.Consul;
-import com.orbitz.consul.KeyValueClient;
-import com.orbitz.consul.model.kv.Value;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
 import org.cfg4j.source.ConfigurationSource;
 import org.cfg4j.source.SourceCommunicationException;
 import org.cfg4j.source.context.environment.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import com.google.common.net.HostAndPort;
+import com.orbitz.consul.Consul;
+import com.orbitz.consul.KeyValueClient;
+import com.orbitz.consul.model.kv.Value;
 
 /**
  * Note: use {@link ConsulConfigurationSourceBuilder} for building instances of this class.
@@ -45,6 +44,7 @@ class ConsulConfigurationSource implements ConfigurationSource {
   private Map<String, String> consulValues;
   private final String host;
   private final int port;
+  private final String path;
   private boolean initialized;
 
   /**
@@ -56,10 +56,53 @@ class ConsulConfigurationSource implements ConfigurationSource {
    * @param port Consul port to connect to
    */
   ConsulConfigurationSource(String host, int port) {
+    this(host, port, "/");
+  }
+
+  /**
+   * Note: use {@link ConsulConfigurationSourceBuilder} for building instances of this class.
+   * <p>
+   * Read configuration from the Consul K-V store located at {@code host}:{@code port}.
+   *
+   * @param host Consul host to connect to
+   * @param port Consul port to connect to
+   * @param keyRoot Consul K-V store root
+   */
+  ConsulConfigurationSource(String host, int port, String keyRoot) {
     this.host = requireNonNull(host);
     this.port = port;
-
+    this.path = keyRoot;
     initialized = false;
+  }
+
+  /**
+   * Note: use {@link ConsulConfigurationSourceBuilder} for building instances of this class.
+   * <p>
+   * Read configuration from the Consul K-V store using the supplied {@code KeyValueClient}.
+   *
+   * @param kvClient {@code KeyValueClient} to talk to Consul
+   */
+  ConsulConfigurationSource(KeyValueClient keyValueClient) {
+    this(keyValueClient, "/");
+  }
+
+  /**
+   * Note: use {@link ConsulConfigurationSourceBuilder} for building instances of this class.
+   * <p>
+   * Read configuration from the Consul K-V store using the supplied {@code KeyValueClient}.
+   *
+   * @param kvClient {@code KeyValueClient} to talk to Consul
+   * @param path key root to be used to read from Consul
+   */
+  ConsulConfigurationSource(KeyValueClient kvClient, String path) {
+    this.kvClient = requireNonNull(kvClient, "kvClient is required");
+    this.path = path;
+
+    // Not required; here because of the contract
+    this.port = 8500;
+    this.host = "localhost";
+    initialized = true;
+
   }
 
   @Override
@@ -67,7 +110,8 @@ class ConsulConfigurationSource implements ConfigurationSource {
     LOG.trace("Requesting configuration for environment: " + environment.getName());
 
     if (!initialized) {
-      throw new IllegalStateException("Configuration source has to be successfully initialized before you request configuration.");
+      throw new IllegalStateException(
+          "Configuration source has to be successfully initialized before you request configuration.");
     }
 
     reload();
@@ -82,10 +126,10 @@ class ConsulConfigurationSource implements ConfigurationSource {
     if (path.length() > 0 && !path.endsWith("/")) {
       path = path + "/";
     }
-
     for (Map.Entry<String, String> entry : consulValues.entrySet()) {
       if (entry.getKey().startsWith(path)) {
-        properties.put(entry.getKey().substring(path.length()).replace("/", "."), entry.getValue());
+        String key = entry.getKey().substring(path.length()).replace("/", ".");
+        properties.put(key, entry.getValue());
       }
     }
 
@@ -97,17 +141,19 @@ class ConsulConfigurationSource implements ConfigurationSource {
    */
   @Override
   public void init() {
-    try {
-      LOG.info("Connecting to Consul client at " + host + ":" + port);
+    if (!initialized) {
+      try {
+        LOG.info("Connecting to Consul client at " + host + ":" + port);
 
-      Consul consul = Consul.builder().withHostAndPort(HostAndPort.fromParts(host, port)).build();
+        Consul consul = Consul.builder().withHostAndPort(HostAndPort.fromParts(host, port))
+            .withReadTimeoutMillis(20000).build();
 
-      kvClient = consul.keyValueClient();
-    } catch (Exception e) {
-      throw new SourceCommunicationException("Can't connect to host " + host + ":" + port, e);
+        kvClient = consul.keyValueClient();
+      } catch (Exception e) {
+        throw new SourceCommunicationException("Can't connect to host " + host + ":" + port, e);
+      }
+      initialized = true;
     }
-
-    initialized = true;
   }
 
   private void reload() {
@@ -116,7 +162,7 @@ class ConsulConfigurationSource implements ConfigurationSource {
 
     try {
       LOG.debug("Reloading configuration from Consuls' K-V store");
-      valueList = kvClient.getValues("/");
+      valueList = kvClient.getValues(this.path);
     } catch (Exception e) {
       initialized = false;
       throw new SourceCommunicationException("Can't get values from k-v store", e);
@@ -139,9 +185,8 @@ class ConsulConfigurationSource implements ConfigurationSource {
 
   @Override
   public String toString() {
-    return "ConsulConfigurationSource{" +
-        "consulValues=" + consulValues +
-        ", kvClient=" + kvClient +
-        '}';
+    return "ConsulConfigurationSource{" + "consulValues=" + consulValues + ", kvClient=" + kvClient
+        + '}';
   }
+
 }

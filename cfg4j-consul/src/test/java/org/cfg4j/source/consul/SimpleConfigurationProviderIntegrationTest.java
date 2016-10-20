@@ -50,6 +50,11 @@ public class SimpleConfigurationProviderIntegrationTest {
               .setResponseCode(200)
               .addHeader("Content-Type", "application/json; charset=utf-8")
               .setBody("[{\"CreateIndex\":1,\"ModifyIndex\":1,\"LockIndex\":0,\"Key\":\"us-west-1/featureA.toggle\",\"Flags\":0,\"Value\":\"ZGlzYWJsZWQ=\"}]");
+        case "/v1/kv/us-west-1%2F?recurse=true":
+          return new MockResponse()
+              .setResponseCode(200)
+              .addHeader("Content-Type", "application/json; charset=utf-8")
+              .setBody("[{\"CreateIndex\":1,\"ModifyIndex\":1,\"LockIndex\":0,\"Key\":\"us-west-1/featureA.toggle\",\"Flags\":0,\"Value\":\"ZGlzYWJsZWQ=\"}]");
       }
       return new MockResponse().setResponseCode(404);
     }
