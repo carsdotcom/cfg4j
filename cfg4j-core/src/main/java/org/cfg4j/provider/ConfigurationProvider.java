@@ -95,4 +95,19 @@ public interface ConfigurationProvider {
    * @throws IllegalStateException    when provider is unable to fetch configuration value for the given {@code key}
    */
   <T> T bind(String prefix, Class<T> type);
+  
+  /**
+   * Create an instance of a given {@code type} that will be bound to this provider. Each time configuration changes the
+   * bound object will be updated with the new values. Use {@code prefix} to specify the relative path to configuration
+   * values. Please note that each method of returned object can throw runtime exceptions. For details see javadoc for
+   * {@link BindInvocationHandler#invoke(Object, Method, Object[])}.
+   *
+   * @param <T>    interface describing configuration object to bind
+   * @param type   {@link Class} for {@code <T>}
+   * @return configuration object bound to this {@link ConfigurationProvider}
+   * @throws NoSuchElementException   when the provided {@code key} doesn't have a corresponding config value
+   * @throws IllegalArgumentException when property can't be coverted to {@code type}
+   * @throws IllegalStateException    when provider is unable to fetch configuration value for the given {@code key}
+   */
+  <T> T bind(Class<T> type);
 }
