@@ -19,7 +19,7 @@ buildscript {
 
     ext {
         artifactGroup = "org.cfg4j"
-        artifactVersion = "5.0.0-SNAPSHOT"
+        artifactVersion = "5.0.0-internal"
     }
 
     repositories {
@@ -30,6 +30,7 @@ buildscript {
 
     dependencies {
         classpath group: "com.github.ben-manes", name: "gradle-versions-plugin", version: "0.12.0"
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.0.0"
     }
 }
 
@@ -41,10 +42,12 @@ task wrapper(type: Wrapper) {
 subprojects {
 
     // ----------- Plugins -----------
+    apply plugin: "com.jfrog.artifactory"
     apply plugin: "java"
     apply plugin: "idea"
     apply plugin: "jacoco"
     apply plugin: "maven"
+    apply plugin: "maven-publish"
     apply plugin: "signing"
     apply plugin: "com.github.ben-manes.versions"
 
@@ -107,52 +110,52 @@ subprojects {
     }
 
     uploadArchives {
-        repositories {
-            mavenDeployer {
-                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+		repositories {
+			mavenDeployer {
+				beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
-                def ossrhUsername = project.findProperty("ossrhUsername") ?: ""
-                def ossrhPassword = project.findProperty("ossrhPassword") ?: ""
+				def ossrhUsername = project.findProperty("ossrhUsername") ?: ""
+				def ossrhPassword = project.findProperty("ossrhPassword") ?: ""
 
-                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
+				repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+					authentication(userName: ossrhUsername, password: ossrhPassword)
+				}
 
-                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
-                }
+				snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+					authentication(userName: ossrhUsername, password: ossrhPassword)
+				}
 
-                pom.project {
-                    name 'cfg4j'
-                    packaging 'jar'
-                    description 'Configuration library for Java distributed apps.'
-                    url 'http://cfg4j.org'
+				pom.project {
+					name 'cfg4j'
+					packaging 'jar'
+					description 'Configuration library for Java distributed apps.'
+					url 'http://cfg4j.org'
 
-                    scm {
-                        url 'git@github.com:cfg4j/cfg4j.git'
-                        connection 'scm:git:git@github.com:cfg4j/cfg4j.git'
-                        developerConnection 'scm:git:git@github.com:cfg4j/cfg4j.git'
-                    }
+					scm {
+						url 'git@github.com:cfg4j/cfg4j.git'
+						connection 'scm:git:git@github.com:cfg4j/cfg4j.git'
+						developerConnection 'scm:git:git@github.com:cfg4j/cfg4j.git'
+					}
 
 
-                    licenses {
-                        license {
-                            name 'The Apache License, Version 2.0'
-                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                            distribution 'repo'
-                        }
-                    }
+					licenses {
+						license {
+							name 'The Apache License, Version 2.0'
+							url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+							distribution 'repo'
+						}
+					}
 
-                    developers {
-                        developer {
-                            id 'norbertpotocki'
-                            name 'Norbert Potocki'
-                            email 'norbert.potocki@nort.pl'
-                        }
-                    }
-                }
-            }
-        }
+					developers {
+						developer {
+							id 'norbertpotocki'
+							name 'Norbert Potocki'
+							email 'norbert.potocki@nort.pl'
+						}
+					}
+				}
+			}
+		}
     }
 
 
@@ -175,5 +178,31 @@ subprojects {
             console.printf "\nThanks.\n\n"
         }
     }
+
+    publishing {
+        publications {
+            main(MavenPublication) {
+                from components.java
+                artifact sourcesJar
+            }
+        }
+    }
+
+    artifactory {
+        contextUrl = 'https://repository.cars.com/artifactory'
+        resolve {
+            repoKey = 'carsapps-release-local'
+        }
+        publish {
+            repository {
+                repoKey = 'carsapps-release-local'
+                username = "${artifactory_user}"
+                password = "${artifactory_password}"
+            }
+            defaults {
+                publications 'main'
+            }   
+        }
+    }    
 
 }
